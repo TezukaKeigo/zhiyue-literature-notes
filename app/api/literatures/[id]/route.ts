@@ -43,7 +43,7 @@ export async function PATCH(request: Request, context: Context) {
     if (!id) return jsonError("文献编号无效");
     const userId = await getUserId();
     const parsed = parseLiteraturePayload(await request.json());
-    if ("error" in parsed) return jsonError(parsed.error);
+    if ("error" in parsed) return jsonError(parsed.error ?? "文献信息校验失败");
     const { tagIds, ...values } = parsed.data;
     const db = getDb();
 
