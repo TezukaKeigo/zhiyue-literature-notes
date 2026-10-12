@@ -69,6 +69,41 @@ npm run dev
 
 默认访问地址通常为 `http://127.0.0.1:5173`。本地调试数据保存在 `.wrangler/state` 中。
 
+## 独立部署到 Cloudflare
+
+项目可以脱离 ChatGPT Sites，直接部署到 Cloudflare Workers，并使用独立的 D1 数据库。
+
+首次部署前登录 Cloudflare：
+
+```powershell
+npx wrangler login
+```
+
+构建项目并初始化远程数据库：
+
+```powershell
+npm run build
+npm run cloudflare:migrate
+```
+
+发布或更新网站：
+
+```powershell
+npm run cloudflare:deploy
+```
+
+独立部署资源：
+
+- Worker：`zhiyue-literature-notes`
+- D1：`zhiyue-literature-notes-db`
+- D1 绑定名：`DB`
+
+Cloudflare 与 ChatGPT Sites 使用不同的 D1 数据库，数据不会自动同步。
+
+`workers.dev` 地址默认可以从公网访问。个人使用时，应在 Cloudflare 控制台进入
+Workers & Pages，选择 `zhiyue-literature-notes`，在 Access 页签中保护 All traffic，
+并将允许规则限制为自己的邮箱。部署配置已关闭公开的版本预览 URL。
+
 ## 数据库设计
 
 - `literatures`：文献核心信息与阅读状态
