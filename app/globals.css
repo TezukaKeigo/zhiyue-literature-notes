@@ -36,10 +36,11 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .nav-item.active { background: #f0ede3; color: #19393f; box-shadow: 0 5px 16px rgba(0,0,0,.12); }
 .nav-item b { min-width: 23px; padding: 2px 6px; border-radius: 20px; background: rgba(255,255,255,.1); text-align: center; font-size: 11px; }
 .nav-item.active b { background: #d7dfdb; }
-.sidebar-foot { margin-top: auto; border-top: 1px solid rgba(255,255,255,.12); padding: 18px 8px 0; color: #9fb1b3; font-size: 11px; line-height: 1.65; }
-.sidebar-foot p { margin: 0 0 14px; }
-.sidebar-foot > span { display: flex; align-items: center; gap: 7px; color: #cad5d5; }
-.online-dot { width: 7px; height: 7px; border-radius: 99px; background: #7cc39b; box-shadow: 0 0 0 4px rgba(124,195,155,.12); }
+.sidebar-profile { display: flex; align-items: center; gap: 10px; margin-top: auto; border-top: 1px solid rgba(255,255,255,.12); padding: 18px 8px 0; }
+.profile-avatar { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border: 1px solid rgba(255,255,255,.18); border-radius: 11px; background: rgba(255,255,255,.1); color: #f7f5ee; font-family: Georgia, "Songti SC", serif; font-size: 16px; }
+.profile-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.profile-copy strong { overflow: hidden; color: #f7f5ee; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.profile-copy small { color: #9fb1b3; font-size: 10px; }
 
 .main-area { min-height: 100vh; margin-left: 238px; }
 .topbar { position: sticky; top: 0; z-index: 20; display: flex; height: 76px; align-items: center; gap: 16px; border-bottom: 1px solid rgba(23,35,38,.1); background: rgba(244,242,236,.93); padding: 0 4.2vw; backdrop-filter: blur(12px); }
@@ -247,7 +248,7 @@ select, input, textarea { border: 1px solid var(--line); border-radius: 8px; bac
   .alert { left: 50%; top: 82px; width: calc(100% - 36px); }
   .dashboard-grid, .tags-layout { grid-template-columns: 1fr; }
   .hero-row, .section-heading { align-items: flex-start; flex-direction: column; }
-  .hero-row .button, .section-heading .button { align-self: stretch; }
+  .section-heading .button { align-self: stretch; }
   .literature-grid { grid-template-columns: 1fr; }
   .modal-form { grid-template-columns: 1fr; }
   .full-field { grid-column: auto; }

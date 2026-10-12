@@ -6,7 +6,6 @@ import {
   BookOpen,
   Check,
   ChevronRight,
-  CirclePlus,
   FileText,
   Library,
   LoaderCircle,
@@ -358,7 +357,10 @@ export function LiteratureApp() {
           <NavButton active={view === "library"} icon={<Library size={18} />} label="文献库" count={literatures.length} onClick={() => navigate("library")} />
           <NavButton active={view === "tags"} icon={<TagIcon size={18} />} label="标签管理" count={tags.length} onClick={() => navigate("tags")} />
         </nav>
-        <div className="sidebar-foot"><p>数据使用数据库持久化，刷新页面不会丢失。</p><span><span className="online-dot" /> 系统运行正常</span></div>
+        <div className="sidebar-profile" aria-label="当前空间">
+          <span className="profile-avatar" aria-hidden="true">研</span>
+          <span className="profile-copy"><strong>我的研究空间</strong><small>个人文献库</small></span>
+        </div>
       </aside>
 
       <main className="main-area">
@@ -401,7 +403,7 @@ function Dashboard({ literatures, tags, totalNotes, statusCounts, maxStatusCount
 }) {
   const recent = literatures.slice(0, 4);
   return <>
-    <section className="hero-row"><div><p className="eyebrow">PERSONAL RESEARCH LIBRARY</p><h1>把阅读线索，沉淀成知识。</h1><p>统一管理文献、标签和阅读笔记，随时掌握自己的阅读进度。</p></div><button className="button primary" onClick={onAdd}><CirclePlus size={18} />录入第一手资料</button></section>
+    <section className="hero-row"><div><p className="eyebrow">PERSONAL RESEARCH LIBRARY</p><h1>把阅读线索，沉淀成知识。</h1><p>统一管理文献、标签和阅读笔记，随时掌握自己的阅读进度。</p></div></section>
     <section className="metric-grid"><MetricCard icon={<Library />} label="文献总数" value={literatures.length} hint="已收录条目" tone="ink" /><MetricCard icon={<BookOpen />} label="正在阅读" value={statusCounts.READING} hint="持续推进中" tone="amber" /><MetricCard icon={<NotebookPen />} label="阅读笔记" value={totalNotes} hint="已保存观点" tone="green" /><MetricCard icon={<TagIcon />} label="主题标签" value={tags.length} hint="知识分类" tone="purple" /></section>
     <section className="dashboard-grid">
       <div className="panel wide-panel"><PanelHeading title="最近更新" subtitle="继续上一次的阅读思路" action="查看全部" onAction={onGoLibrary} />{recent.length ? <div className="recent-list">{recent.map((item) => <button key={item.id} className="recent-item" onClick={() => onOpen(item.id)}><div className="book-spine" style={{ background: item.tags[0]?.color ?? "#315c63" }} /><div className="recent-copy"><strong>{item.title}</strong><span>{item.authors}{item.year ? ` · ${item.year}` : ""}</span><div className="tag-line"><span className={`status-pill ${statusMeta[item.readingStatus].className}`}>{statusMeta[item.readingStatus].label}</span>{item.tags.slice(0, 2).map((tag) => <span className="mini-tag" key={tag.id}>{tag.name}</span>)}</div></div><div className="note-badge"><NotebookPen size={15} />{item.noteCount}</div><ChevronRight size={18} /></button>)}</div> : <EmptyBlock title="文献库还是空的" text="录入第一篇文献后，最近阅读会显示在这里。" onAdd={onAdd} />}</div>
