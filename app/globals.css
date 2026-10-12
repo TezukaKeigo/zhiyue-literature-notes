@@ -248,7 +248,6 @@ select, input, textarea { border: 1px solid var(--line); border-radius: 8px; bac
   .alert { left: 50%; top: 82px; width: calc(100% - 36px); }
   .dashboard-grid, .tags-layout { grid-template-columns: 1fr; }
   .hero-row, .section-heading { align-items: flex-start; flex-direction: column; }
-  .section-heading .button { align-self: stretch; }
   .literature-grid { grid-template-columns: 1fr; }
   .modal-form { grid-template-columns: 1fr; }
   .full-field { grid-column: auto; }
