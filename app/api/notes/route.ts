@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { literatures, notes } from "../../../db/schema";
-import { errorMessage, getUserId, jsonError } from "../../../lib/api";
+import { apiErrorResponse, getUserId, jsonError } from "../../../lib/api";
 
 export async function POST(request: Request) {
   try {
@@ -29,6 +29,6 @@ export async function POST(request: Request) {
       .returning();
     return Response.json({ note: created }, { status: 201 });
   } catch (error) {
-    return jsonError(errorMessage(error), 500);
+    return apiErrorResponse(error);
   }
 }

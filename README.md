@@ -104,6 +104,17 @@ Cloudflare 与 ChatGPT Sites 使用不同的 D1 数据库，数据不会自动�
 Workers & Pages，选择 `zhiyue-literature-notes`，在 Access 页签中保护 All traffic，
 并将允许规则限制为自己的邮箱。部署配置已关闭公开的版本预览 URL。
 
+应用不会在数据库中保存密码，而是使用 Cloudflare Access 完成 Google 登录。启用
+Access 后，还需要在 Worker 的 Settings > Variables and Secrets 中添加两个文本变量：
+
+- `CF_ACCESS_TEAM_DOMAIN`：Zero Trust 团队域名，例如
+  `https://your-team.cloudflareaccess.com`
+- `CF_ACCESS_AUD`：Access 应用 Additional settings 中的 Application Audience (AUD) Tag
+
+部署配置启用了 `keep_vars`，重新发布代码时会保留控制台中设置的变量。应用会校验
+Access JWT 的签名、签发者、Audience 和有效期，并使用验证后的邮箱隔离每位用户的
+文献、标签和阅读笔记；缺少有效身份时，所有数据接口都会返回 `401`。
+
 ## 数据库设计
 
 - `literatures`：文献核心信息与阅读状态

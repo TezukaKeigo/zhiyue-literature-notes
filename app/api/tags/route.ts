@@ -1,7 +1,7 @@
 import { and, count, eq, sql } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { literatureTags, tags } from "../../../db/schema";
-import { errorMessage, getUserId, jsonError } from "../../../lib/api";
+import { apiErrorResponse, getUserId, jsonError } from "../../../lib/api";
 
 export async function GET() {
   try {
@@ -22,7 +22,7 @@ export async function GET() {
       .orderBy(sql`lower(${tags.name})`);
     return Response.json({ tags: rows.map((row) => ({ ...row, literatureCount: Number(row.literatureCount) })) });
   } catch (error) {
-    return jsonError(errorMessage(error), 500);
+    return apiErrorResponse(error);
   }
 }
 
@@ -45,6 +45,6 @@ export async function POST(request: Request) {
     const [created] = await db.insert(tags).values({ userId, name, color }).returning();
     return Response.json({ tag: { ...created, literatureCount: 0 } }, { status: 201 });
   } catch (error) {
-    return jsonError(errorMessage(error), 500);
+    return apiErrorResponse(error);
   }
 }

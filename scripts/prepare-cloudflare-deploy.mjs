@@ -17,6 +17,7 @@ config.name = "zhiyue-literature-notes";
 config.topLevelName = "zhiyue-literature-notes";
 config.workers_dev = true;
 config.preview_urls = false;
+config.keep_vars = true;
 config.d1_databases = [
   {
     binding: "DB",

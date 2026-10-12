@@ -1,11 +1,21 @@
-import { headers } from "next/headers";
+import { getAuthenticatedUser } from "../app/chatgpt-auth";
 
 export const READING_STATUSES = ["TO_READ", "READING", "FINISHED"] as const;
 export type ReadingStatus = (typeof READING_STATUSES)[number];
 
 export async function getUserId() {
-  const requestHeaders = await headers();
-  return requestHeaders.get("oai-authenticated-user-id") ?? "local-demo-user";
+  const user = await getAuthenticatedUser();
+  if (!user) throw new AuthenticationRequiredError();
+  return user.userId;
+}
+
+export class AuthenticationRequiredError extends Error {
+  status = 401;
+
+  constructor() {
+    super("登录状态无效或已过期，请重新登录");
+    this.name = "AuthenticationRequiredError";
+  }
 }
 
 export function jsonError(message: string, status = 400) {
@@ -26,4 +36,11 @@ export function errorMessage(error: unknown) {
   if (message.includes("UNIQUE constraint failed")) return "名称或记录已存在，请勿重复提交";
   if (message.includes("no such table")) return "数据库尚未初始化，请先应用项目迁移";
   return message;
+}
+
+export function apiErrorResponse(error: unknown) {
+  if (error instanceof AuthenticationRequiredError) {
+    return jsonError(error.message, error.status);
+  }
+  return jsonError(errorMessage(error), 500);
 }

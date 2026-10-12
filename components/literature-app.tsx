@@ -9,11 +9,14 @@ import {
   FileText,
   Library,
   LoaderCircle,
+  LogOut,
   Menu,
   NotebookPen,
   Pencil,
   Plus,
   Search,
+  Settings,
+  ShieldCheck,
   Star,
   Tag as TagIcon,
   Trash2,
@@ -23,6 +26,13 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type View = "dashboard" | "library" | "tags";
 type Status = "TO_READ" | "READING" | "FINISHED";
+
+type AuthenticatedUser = {
+  displayName: string;
+  email: string;
+  provider: "chatgpt" | "cloudflare";
+  signOutPath: string;
+};
 
 type Tag = {
   id: number;
@@ -110,7 +120,7 @@ function formatDate(value: string) {
     : new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric" }).format(date);
 }
 
-export function LiteratureApp() {
+export function LiteratureApp({ user }: { user: AuthenticatedUser }) {
   const [view, setView] = useState<View>("dashboard");
   const [mobileNav, setMobileNav] = useState(false);
   const [literatures, setLiteratures] = useState<Literature[]>([]);
@@ -134,6 +144,7 @@ export function LiteratureApp() {
   const [tagName, setTagName] = useState("");
   const [tagColor, setTagColor] = useState(tagPalette[0]);
   const [editingTagId, setEditingTagId] = useState<number | null>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const showMessage = (text: string) => {
     setError("");
@@ -357,10 +368,11 @@ export function LiteratureApp() {
           <NavButton active={view === "library"} icon={<Library size={18} />} label="文献库" count={literatures.length} onClick={() => navigate("library")} />
           <NavButton active={view === "tags"} icon={<TagIcon size={18} />} label="标签管理" count={tags.length} onClick={() => navigate("tags")} />
         </nav>
-        <div className="sidebar-profile" aria-label="当前空间">
-          <span className="profile-avatar" aria-hidden="true">研</span>
-          <span className="profile-copy"><strong>我的研究空间</strong><small>个人文献库</small></span>
-        </div>
+        <button className="sidebar-profile" aria-label="打开账户设置" onClick={() => setAccountOpen(true)}>
+          <span className="profile-avatar" aria-hidden="true">{user.displayName.slice(0, 1).toLocaleUpperCase()}</span>
+          <span className="profile-copy"><strong>{user.displayName}</strong><small>已登录 · 独立数据空间</small></span>
+          <Settings className="profile-settings" size={16} aria-hidden="true" />
+        </button>
       </aside>
 
       <main className="main-area">
@@ -386,6 +398,39 @@ export function LiteratureApp() {
       {mobileNav && <button className="nav-backdrop" onClick={() => setMobileNav(false)} aria-label="关闭菜单" />}
       {formOpen && <LiteratureModal editing={Boolean(editingLiterature)} form={literatureForm} tags={tags} saving={saving} onChange={setLiteratureForm} onSubmit={saveLiterature} onClose={() => setFormOpen(false)} />}
       {(detail || detailLoading) && <DetailPanel detail={detail} loading={detailLoading} noteContent={noteContent} notePage={notePage} editingNoteId={editingNoteId} saving={saving} onClose={() => setDetail(null)} onEditLiterature={openEdit} onDeleteLiterature={deleteLiterature} onNoteContent={setNoteContent} onNotePage={setNotePage} onSaveNote={saveNote} onEditNote={(note) => { setEditingNoteId(note.id); setNoteContent(note.content); setNotePage(note.pageRef); }} onDeleteNote={deleteNote} onCancelNote={() => { setEditingNoteId(null); setNoteContent(""); setNotePage(""); }} />}
+      {accountOpen && <AccountModal user={user} onClose={() => setAccountOpen(false)} />}
+    </div>
+  );
+}
+
+function AccountModal({ user, onClose }: { user: AuthenticatedUser; onClose: () => void }) {
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="modal account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
+        <header className="modal-header">
+          <div><p className="eyebrow">ACCOUNT & PRIVACY</p><h2 id="account-title">账户设置</h2><p>管理当前登录身份与个人数据空间。</p></div>
+          <button className="icon-button" onClick={onClose} aria-label="关闭账户设置"><X size={20} /></button>
+        </header>
+        <div className="account-content">
+          <div className="account-identity">
+            <span className="account-avatar" aria-hidden="true">{user.displayName.slice(0, 1).toLocaleUpperCase()}</span>
+            <div><strong>{user.displayName}</strong><span>{user.email}</span><small>{user.provider === "cloudflare" ? "Google / Cloudflare Access" : "ChatGPT 账户"}</small></div>
+          </div>
+          <div className="account-security">
+            <ShieldCheck size={20} />
+            <div><strong>数据已按账户隔离</strong><p>当前账户只能访问自己创建的文献、标签和阅读笔记，所有接口都会在服务端校验身份。</p></div>
+          </div>
+          <dl className="account-details">
+            <div><dt>登录邮箱</dt><dd>{user.email}</dd></div>
+            <div><dt>数据空间</dt><dd>个人专属</dd></div>
+            <div><dt>身份验证</dt><dd>{user.provider === "cloudflare" ? "Cloudflare Access" : "ChatGPT Sites"}</dd></div>
+          </dl>
+        </div>
+        <footer className="account-actions">
+          <button className="button secondary" onClick={onClose}>完成</button>
+          <a className="button account-logout" href={user.signOutPath} target="_top"><LogOut size={16} />退出登录</a>
+        </footer>
+      </section>
     </div>
   );
 }

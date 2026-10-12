@@ -36,11 +36,27 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .nav-item.active { background: #f0ede3; color: #19393f; box-shadow: 0 5px 16px rgba(0,0,0,.12); }
 .nav-item b { min-width: 23px; padding: 2px 6px; border-radius: 20px; background: rgba(255,255,255,.1); text-align: center; font-size: 11px; }
 .nav-item.active b { background: #d7dfdb; }
-.sidebar-profile { display: flex; align-items: center; gap: 10px; margin-top: auto; border-top: 1px solid rgba(255,255,255,.12); padding: 18px 8px 0; }
+.sidebar-profile { display: flex; width: 100%; align-items: center; gap: 10px; margin-top: auto; border: 0; border-top: 1px solid rgba(255,255,255,.12); background: transparent; padding: 18px 8px 0; text-align: left; cursor: pointer; }
+.sidebar-profile:hover .profile-avatar { background: rgba(255,255,255,.16); }
 .profile-avatar { display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border: 1px solid rgba(255,255,255,.18); border-radius: 11px; background: rgba(255,255,255,.1); color: #f7f5ee; font-family: Georgia, "Songti SC", serif; font-size: 16px; }
-.profile-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.profile-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
 .profile-copy strong { overflow: hidden; color: #f7f5ee; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .profile-copy small { color: #9fb1b3; font-size: 10px; }
+.profile-settings { flex: 0 0 auto; color: #8fa5a8; transition: transform .18s ease, color .18s ease; }
+.sidebar-profile:hover .profile-settings { transform: rotate(18deg); color: white; }
+
+.login-page { display: grid; min-height: 100vh; place-items: center; overflow: hidden; background: radial-gradient(circle at 18% 20%, rgba(49,92,99,.13), transparent 34%), radial-gradient(circle at 85% 82%, rgba(178,118,54,.12), transparent 31%), var(--paper); padding: 24px; }
+.login-card { position: relative; width: min(460px,100%); overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: rgba(255,254,250,.96); padding: 36px; box-shadow: 0 28px 80px rgba(23,50,57,.14); text-align: center; }
+.login-card::before { position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, var(--deep), #4f7258, var(--amber)); content: ""; }
+.login-brand { display: flex; align-items: center; justify-content: center; gap: 11px; margin-bottom: 32px; text-align: left; }
+.login-brand .brand-mark { width: 46px; height: 46px; }
+.login-brand strong { display: block; font-family: Georgia, "Songti SC", serif; font-size: 22px; letter-spacing: .12em; }
+.login-brand small { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; letter-spacing: .16em; }
+.login-lock { display: grid; width: 62px; height: 62px; place-items: center; margin: 0 auto 21px; border-radius: 18px; background: var(--teal-soft); color: var(--deep); }
+.login-card h1 { margin: 8px 0 13px; font-family: Georgia, "Songti SC", serif; font-size: 29px; }
+.login-copy { margin: 0 auto; color: var(--muted); font-size: 13px; line-height: 1.8; }
+.login-button { width: 100%; margin-top: 28px; text-decoration: none; }
+.login-hint { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 17px 0 0; color: #7e898a; font-size: 10px; }
 
 .main-area { min-height: 100vh; margin-left: 238px; }
 .topbar { position: sticky; top: 0; z-index: 20; display: flex; height: 76px; align-items: center; gap: 16px; border-bottom: 1px solid rgba(23,35,38,.1); background: rgba(244,242,236,.93); padding: 0 4.2vw; backdrop-filter: blur(12px); }
@@ -184,6 +200,28 @@ select, input, textarea { border: 1px solid var(--line); border-radius: 8px; bac
 .tag-picker i { width: 7px; height: 7px; border-radius: 99px; }
 .tag-picker p { margin: 0; color: var(--muted); font-size: 11px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #e8e8e3; padding-top: 18px; }
+
+.account-modal { width: min(560px,100%); }
+.account-content { display: flex; flex-direction: column; gap: 18px; padding: 24px 27px; }
+.account-identity { display: flex; align-items: center; gap: 14px; }
+.account-avatar { display: grid; width: 52px; height: 52px; flex: 0 0 auto; place-items: center; border-radius: 15px; background: var(--deep); color: white; font-family: Georgia, "Songti SC", serif; font-size: 21px; }
+.account-identity > div { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.account-identity strong { font-size: 15px; }
+.account-identity span { overflow: hidden; color: #536062; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.account-identity small { color: var(--muted); font-size: 10px; }
+.account-security { display: flex; align-items: flex-start; gap: 12px; border: 1px solid #c7ddd0; border-radius: 12px; background: #f1f8f2; padding: 15px; color: #3f6b4c; }
+.account-security svg { flex: 0 0 auto; margin-top: 1px; }
+.account-security strong { font-size: 12px; }
+.account-security p { margin: 5px 0 0; color: #587461; font-size: 10px; line-height: 1.7; }
+.account-details { margin: 0; border: 1px solid var(--line); border-radius: 12px; background: #faf9f5; padding: 0 14px; }
+.account-details > div { display: grid; grid-template-columns: 86px minmax(0,1fr); gap: 12px; border-top: 1px solid #e5e6e0; padding: 12px 2px; }
+.account-details > div:first-child { border-top: 0; }
+.account-details dt { color: var(--muted); font-size: 10px; }
+.account-details dd { overflow: hidden; margin: 0; color: #3e4b4d; font-size: 11px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.account-actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); padding: 18px 27px 22px; }
+.account-actions a { text-decoration: none; }
+.account-logout { border-color: #e4c3bf; background: #fff5f3; color: var(--red); }
+.account-logout:hover { border-color: #cf938d; background: var(--red-soft); }
 
 .drawer-backdrop { justify-items: end; }
 .detail-drawer { display: flex; width: min(650px,100vw); height: 100vh; flex-direction: column; background: var(--card); box-shadow: -20px 0 70px rgba(10,25,28,.22); }

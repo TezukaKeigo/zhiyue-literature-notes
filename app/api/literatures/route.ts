@@ -2,7 +2,7 @@ import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { literatureTags, literatures, notes, tags } from "../../../db/schema";
 import {
-  errorMessage,
+  apiErrorResponse,
   getUserId,
   jsonError,
 } from "../../../lib/api";
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
 
     return Response.json({ literatures: result });
   } catch (error) {
-    return jsonError(errorMessage(error), 500);
+    return apiErrorResponse(error);
   }
 }
 
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     }
     return Response.json({ literature: created }, { status: 201 });
   } catch (error) {
-    return jsonError(errorMessage(error), 500);
+    return apiErrorResponse(error);
   }
 }
 

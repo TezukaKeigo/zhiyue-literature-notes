@@ -1,11 +1,14 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { env } from "cloudflare:workers";
 
 export type ChatGPTUser = {
   userId: string;
   displayName: string;
   email: string;
   fullName: string | null;
+  provider: "chatgpt" | "cloudflare";
+  signOutPath: string;
 };
 
 const USER_ID_HEADER = "oai-authenticated-user-id";
@@ -17,6 +20,25 @@ const PERCENT_ENCODED_UTF8 = "percent-encoded-utf-8";
 const SIGN_IN_PATH = "/signin-with-chatgpt";
 const SIGN_OUT_PATH = "/signout-with-chatgpt";
 const CALLBACK_PATH = "/callback";
+const CF_ACCESS_EMAIL_HEADER = "cf-access-authenticated-user-email";
+const CF_ACCESS_JWT_HEADER = "cf-access-jwt-assertion";
+const CF_ACCESS_LOGOUT_PATH = "/cdn-cgi/access/logout";
+
+type AccessJwtHeader = { alg?: unknown; kid?: unknown };
+type AccessJwtPayload = {
+  aud?: unknown;
+  email?: unknown;
+  exp?: unknown;
+  iss?: unknown;
+  nbf?: unknown;
+};
+
+type AccessJwk = JsonWebKey & { kid?: string };
+type AccessJwks = { keys?: AccessJwk[] };
+
+let cachedAccessKeys:
+  | { issuer: string; expiresAt: number; keys: AccessJwk[] }
+  | undefined;
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const requestHeaders = await headers();
@@ -36,6 +58,49 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
     displayName: fullName ?? email,
     email,
     fullName,
+    provider: "chatgpt",
+    signOutPath: chatGPTSignOutPath("/"),
+  };
+}
+
+export async function getAuthenticatedUser(): Promise<ChatGPTUser | null> {
+  const requestHeaders = await headers();
+  const chatGPTUserId = requestHeaders.get(USER_ID_HEADER);
+  const chatGPTEmail = requestHeaders.get(USER_EMAIL_HEADER);
+
+  if (chatGPTUserId && chatGPTEmail) {
+    const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
+    const fullName =
+      encodedFullName &&
+      requestHeaders.get(USER_FULL_NAME_ENCODING_HEADER) === PERCENT_ENCODED_UTF8
+        ? safeDecodeURIComponent(encodedFullName)
+        : null;
+
+    return {
+      userId: chatGPTUserId,
+      displayName: fullName ?? chatGPTEmail,
+      email: chatGPTEmail,
+      fullName,
+      provider: "chatgpt",
+      signOutPath: chatGPTSignOutPath("/"),
+    };
+  }
+
+  const accessEmail = requestHeaders.get(CF_ACCESS_EMAIL_HEADER)?.trim().toLocaleLowerCase();
+  const accessJwt = requestHeaders.get(CF_ACCESS_JWT_HEADER);
+  if (!accessEmail || !accessJwt) return null;
+
+  const verifiedEmail = await verifyCloudflareAccessJwt(accessJwt);
+  if (!verifiedEmail || verifiedEmail !== accessEmail) return null;
+
+  const displayName = verifiedEmail.split("@")[0] || verifiedEmail;
+  return {
+    userId: `cloudflare:${verifiedEmail}`,
+    displayName,
+    email: verifiedEmail,
+    fullName: null,
+    provider: "cloudflare",
+    signOutPath: CF_ACCESS_LOGOUT_PATH,
   };
 }
 
@@ -87,4 +152,96 @@ function safeDecodeURIComponent(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+async function verifyCloudflareAccessJwt(token: string): Promise<string | null> {
+  const teamDomain = normalizeTeamDomain(env.CF_ACCESS_TEAM_DOMAIN);
+  const expectedAudience = env.CF_ACCESS_AUD?.trim();
+  if (!teamDomain || !expectedAudience) return null;
+
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+
+  let jwtHeader: AccessJwtHeader;
+  let payload: AccessJwtPayload;
+  try {
+    jwtHeader = JSON.parse(decodeBase64UrlText(parts[0])) as AccessJwtHeader;
+    payload = JSON.parse(decodeBase64UrlText(parts[1])) as AccessJwtPayload;
+  } catch {
+    return null;
+  }
+
+  if (jwtHeader.alg !== "RS256" || typeof jwtHeader.kid !== "string") return null;
+  if (payload.iss !== teamDomain || !audienceMatches(payload.aud, expectedAudience)) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  if (typeof payload.exp !== "number" || payload.exp <= now) return null;
+  if (typeof payload.nbf === "number" && payload.nbf > now + 30) return null;
+  if (typeof payload.email !== "string" || !payload.email.includes("@")) return null;
+
+  try {
+    const keys = await getAccessKeys(teamDomain);
+    const jwk = keys.find((key) => key.kid === jwtHeader.kid);
+    if (!jwk) return null;
+
+    const publicKey = await crypto.subtle.importKey(
+      "jwk",
+      jwk,
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+    const valid = await crypto.subtle.verify(
+      "RSASSA-PKCS1-v1_5",
+      publicKey,
+      decodeBase64UrlBytes(parts[2]),
+      new TextEncoder().encode(`${parts[0]}.${parts[1]}`),
+    );
+    return valid ? payload.email.trim().toLocaleLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function getAccessKeys(issuer: string): Promise<AccessJwk[]> {
+  if (cachedAccessKeys && cachedAccessKeys.issuer === issuer && cachedAccessKeys.expiresAt > Date.now()) {
+    return cachedAccessKeys.keys;
+  }
+
+  const response = await fetch(`${issuer}/cdn-cgi/access/certs`);
+  if (!response.ok) throw new Error("无法获取 Cloudflare Access 公钥");
+  const body = (await response.json()) as AccessJwks;
+  const keys = Array.isArray(body.keys) ? body.keys : [];
+  cachedAccessKeys = { issuer, keys, expiresAt: Date.now() + 60 * 60 * 1000 };
+  return keys;
+}
+
+function normalizeTeamDomain(value: string | undefined): string | null {
+  const raw = value?.trim().replace(/\/$/, "");
+  if (!raw) return null;
+  const withProtocol = raw.startsWith("https://") ? raw : `https://${raw}`;
+  try {
+    const url = new URL(withProtocol);
+    if (url.protocol !== "https:" || !url.hostname.endsWith(".cloudflareaccess.com")) return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+function audienceMatches(value: unknown, expected: string): boolean {
+  return value === expected || (Array.isArray(value) && value.includes(expected));
+}
+
+function decodeBase64UrlText(value: string): string {
+  return new TextDecoder().decode(decodeBase64UrlBytes(value));
+}
+
+function decodeBase64UrlBytes(value: string): Uint8Array<ArrayBuffer> {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
 }

@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { literatureTags, literatures, notes, tags } from "../../../../db/schema";
-import { errorMessage, getUserId, jsonError, parsePositiveId } from "../../../../lib/api";
+import { apiErrorResponse, getUserId, jsonError, parsePositiveId } from "../../../../lib/api";
 import { parseLiteraturePayload } from "../../../../lib/literature-validation";
 
 type Context = { params: Promise<{ id: string }> };
@@ -33,7 +33,7 @@ export async function GET(_request: Request, context: Context) {
     ]);
     return Response.json({ literature: { ...literature, tags: tagRows, notes: noteRows } });
   } catch (error) {
-    return jsonError(errorMessage(error), 500);
+    return apiErrorResponse(error);
   }
 }
 
@@ -89,7 +89,7 @@ export async function PATCH(request: Request, context: Context) {
     }
     return Response.json({ literature: updated });
   } catch (error) {
-    return jsonError(errorMessage(error), 500);
+    return apiErrorResponse(error);
   }
 }
 
@@ -106,6 +106,6 @@ export async function DELETE(_request: Request, context: Context) {
     if (!deleted.length) return jsonError("文献不存在或已被删除", 404);
     return Response.json({ success: true });
   } catch (error) {
-    return jsonError(errorMessage(error), 500);
+    return apiErrorResponse(error);
   }
 }
