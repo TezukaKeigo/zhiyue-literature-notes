@@ -1,4 +1,5 @@
-export const PASSWORD_ITERATIONS = 310_000;
+// Keep password derivation within the deployed Worker's Web Crypto runtime budget.
+export const PASSWORD_ITERATIONS = 100_000;
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
 const encoder = new TextEncoder();
