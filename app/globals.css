@@ -205,6 +205,22 @@ select, input, textarea { border: 1px solid var(--line); border-radius: 8px; bac
 .modal-form input, .modal-form select { height: 42px; padding: 0 11px; }
 .modal-form textarea { resize: vertical; padding: 11px; line-height: 1.65; }
 .full-field { grid-column: 1 / -1; }
+.pdf-import { display: flex; flex-direction: column; }
+.pdf-dropzone { display: grid; grid-template-columns: 46px minmax(0,1fr) auto; align-items: center; gap: 13px; min-height: 88px; border: 1.5px dashed #aebdba; border-radius: 12px; background: #f7faf8; padding: 15px 17px; cursor: pointer; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+.pdf-dropzone:hover, .pdf-dropzone.dragging { border-color: var(--teal); background: #edf5f2; transform: translateY(-1px); }
+.pdf-dropzone.parsed { border-style: solid; border-color: #9fc5ac; background: #f1f8f2; }
+.pdf-dropzone input { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+.pdf-drop-icon { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 12px; background: var(--teal-soft); color: var(--deep); }
+.pdf-dropzone.parsed .pdf-drop-icon { background: #dceade; color: #3f6b4c; }
+.pdf-drop-copy { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.pdf-drop-copy strong { font-size: 12px; }
+.pdf-drop-copy small { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.pdf-reselect { display: flex; align-items: center; gap: 5px; color: var(--teal); font-size: 10px; font-weight: 700; }
+.pdf-privacy, .pdf-result, .pdf-warning, .pdf-error { margin: 7px 2px 0; font-size: 10px; line-height: 1.55; }
+.pdf-privacy { color: var(--muted); }
+.pdf-result { color: #3f6b4c; }
+.pdf-warning { color: #8d642d; }
+.pdf-error { color: var(--red); }
 .tag-picker { border-top: 1px solid #e8e8e3; padding-top: 17px; }
 .tag-picker > div { display: flex; flex-wrap: wrap; gap: 7px; }
 .tag-picker button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 99px; background: white; padding: 7px 10px; font-size: 10px; cursor: pointer; }
@@ -334,6 +350,8 @@ select, input, textarea { border: 1px solid var(--line); border-radius: 8px; bac
   .modal-form, .modal-header { padding-left: 18px; padding-right: 18px; }
   .account-tabs, .account-content, .guide-content, .account-actions { padding-left: 18px; padding-right: 18px; }
   .space-name-form > div { grid-template-columns: 1fr; }
+  .pdf-dropzone { grid-template-columns: 42px minmax(0,1fr); padding: 13px; }
+  .pdf-reselect { display: none; }
   .drawer-scroll { padding: 24px 20px 40px; }
   .note-form > div { align-items: stretch; flex-direction: column; }
   .note-form input { width: 100%; }
