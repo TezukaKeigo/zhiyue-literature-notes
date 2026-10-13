@@ -7,6 +7,7 @@ import {
   Check,
   ChevronRight,
   FileText,
+  HelpCircle,
   Library,
   LoaderCircle,
   LogOut,
@@ -121,6 +122,7 @@ function formatDate(value: string) {
 }
 
 export function LiteratureApp({ user }: { user: AuthenticatedUser }) {
+  const [currentUser, setCurrentUser] = useState(user);
   const [view, setView] = useState<View>("dashboard");
   const [mobileNav, setMobileNav] = useState(false);
   const [literatures, setLiteratures] = useState<Literature[]>([]);
@@ -369,8 +371,8 @@ export function LiteratureApp({ user }: { user: AuthenticatedUser }) {
           <NavButton active={view === "tags"} icon={<TagIcon size={18} />} label="标签管理" count={tags.length} onClick={() => navigate("tags")} />
         </nav>
         <button className="sidebar-profile" aria-label="打开账户设置" onClick={() => setAccountOpen(true)}>
-          <span className="profile-avatar" aria-hidden="true">{user.displayName.slice(0, 1).toLocaleUpperCase()}</span>
-          <span className="profile-copy"><strong>{user.displayName}</strong><small>已登录 · 独立数据空间</small></span>
+          <span className="profile-avatar" aria-hidden="true">{currentUser.displayName.slice(0, 1).toLocaleUpperCase()}</span>
+          <span className="profile-copy"><strong>{currentUser.displayName}</strong><small>已登录 · 独立数据空间</small></span>
           <Settings className="profile-settings" size={16} aria-hidden="true" />
         </button>
       </aside>
@@ -398,13 +400,42 @@ export function LiteratureApp({ user }: { user: AuthenticatedUser }) {
       {mobileNav && <button className="nav-backdrop" onClick={() => setMobileNav(false)} aria-label="关闭菜单" />}
       {formOpen && <LiteratureModal editing={Boolean(editingLiterature)} form={literatureForm} tags={tags} saving={saving} onChange={setLiteratureForm} onSubmit={saveLiterature} onClose={() => setFormOpen(false)} />}
       {(detail || detailLoading) && <DetailPanel detail={detail} loading={detailLoading} noteContent={noteContent} notePage={notePage} editingNoteId={editingNoteId} saving={saving} onClose={() => setDetail(null)} onEditLiterature={openEdit} onDeleteLiterature={deleteLiterature} onNoteContent={setNoteContent} onNotePage={setNotePage} onSaveNote={saveNote} onEditNote={(note) => { setEditingNoteId(note.id); setNoteContent(note.content); setNotePage(note.pageRef); }} onDeleteNote={deleteNote} onCancelNote={() => { setEditingNoteId(null); setNoteContent(""); setNotePage(""); }} />}
-      {accountOpen && <AccountModal user={user} onClose={() => setAccountOpen(false)} />}
+      {accountOpen && <AccountModal user={currentUser} onUserChange={setCurrentUser} onClose={() => setAccountOpen(false)} />}
     </div>
   );
 }
 
-function AccountModal({ user, onClose }: { user: AuthenticatedUser; onClose: () => void }) {
+function AccountModal({ user, onUserChange, onClose }: {
+  user: AuthenticatedUser;
+  onUserChange: (user: AuthenticatedUser) => void;
+  onClose: () => void;
+}) {
+  const [tab, setTab] = useState<"settings" | "guide">("settings");
+  const [spaceName, setSpaceName] = useState(user.displayName);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [profileMessage, setProfileMessage] = useState("");
+
+  const saveProfile = async (event: FormEvent) => {
+    event.preventDefault();
+    setProfileError("");
+    setProfileMessage("");
+    setSavingProfile(true);
+    try {
+      const result = await requestJson<{ user: { displayName: string; email: string } }>("/api/auth/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ spaceName }),
+      });
+      setSpaceName(result.user.displayName);
+      onUserChange({ ...user, displayName: result.user.displayName });
+      setProfileMessage("空间名称已保存");
+    } catch (value) {
+      setProfileError(value instanceof Error ? value.message : "保存失败，请稍后重试");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const logout = async () => {
     if (user.provider === "chatgpt") {
@@ -423,26 +454,58 @@ function AccountModal({ user, onClose }: { user: AuthenticatedUser; onClose: () 
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="modal account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
         <header className="modal-header">
-          <div><p className="eyebrow">ACCOUNT & PRIVACY</p><h2 id="account-title">账户设置</h2><p>管理当前登录身份与个人数据空间。</p></div>
+          <div><p className="eyebrow">SPACE & GUIDE</p><h2 id="account-title">设置与帮助</h2><p>管理个人空间，或查看知阅使用说明。</p></div>
           <button className="icon-button" onClick={onClose} aria-label="关闭账户设置"><X size={20} /></button>
         </header>
-        <div className="account-content">
-          <div className="account-identity">
-            <span className="account-avatar" aria-hidden="true">{user.displayName.slice(0, 1).toLocaleUpperCase()}</span>
-            <div><strong>{user.displayName}</strong><span>{user.email}</span><small>{user.provider === "local" ? "知阅本地账号" : "ChatGPT 账户"}</small></div>
-          </div>
-          <div className="account-security">
-            <ShieldCheck size={20} />
-            <div><strong>数据已按账户隔离</strong><p>当前账户只能访问自己创建的文献、标签和阅读笔记，所有接口都会在服务端校验身份。</p></div>
-          </div>
-          <dl className="account-details">
-            <div><dt>登录邮箱</dt><dd>{user.email}</dd></div>
-            <div><dt>数据空间</dt><dd>个人专属</dd></div>
-            <div><dt>身份验证</dt><dd>{user.provider === "local" ? "加密密码与安全会话" : "ChatGPT Sites"}</dd></div>
-          </dl>
+        <div className="account-tabs" role="tablist" aria-label="设置与帮助">
+          <button className={tab === "settings" ? "active" : ""} role="tab" aria-selected={tab === "settings"} onClick={() => setTab("settings")}><Settings size={16} />空间设置</button>
+          <button className={tab === "guide" ? "active" : ""} role="tab" aria-selected={tab === "guide"} onClick={() => setTab("guide")}><HelpCircle size={16} />使用说明</button>
         </div>
+
+        {tab === "settings" ? (
+          <div className="account-content">
+            <div className="account-identity">
+              <span className="account-avatar" aria-hidden="true">{user.displayName.slice(0, 1).toLocaleUpperCase()}</span>
+              <div><strong>{user.displayName}</strong><span>{user.email}</span><small>{user.provider === "local" ? "知阅本地账号" : "ChatGPT 账户"}</small></div>
+            </div>
+            <form className="space-name-form" onSubmit={saveProfile}>
+              <label htmlFor="space-name">空间名称</label>
+              <p>名称会显示在左下角，只影响当前账号。</p>
+              <div>
+                <input id="space-name" required maxLength={30} value={spaceName} onChange={(event) => setSpaceName(event.target.value)} disabled={user.provider !== "local" || savingProfile} />
+                <button className="button primary compact" disabled={user.provider !== "local" || savingProfile || spaceName.trim() === user.displayName}>
+                  {savingProfile ? <LoaderCircle className="spin" size={16} /> : <Check size={16} />}{savingProfile ? "保存中…" : "保存名称"}
+                </button>
+              </div>
+              {user.provider !== "local" && <span className="form-note">当前登录方式的名称由身份提供方管理。</span>}
+              {profileError && <span className="form-note error-copy" role="alert">{profileError}</span>}
+              {profileMessage && <span className="form-note success-copy" role="status">{profileMessage}</span>}
+            </form>
+            <div className="account-security">
+              <ShieldCheck size={20} />
+              <div><strong>数据已按账户隔离</strong><p>当前账户只能访问自己创建的文献、标签和阅读笔记，所有接口都会在服务端校验身份。</p></div>
+            </div>
+            <dl className="account-details">
+              <div><dt>登录邮箱</dt><dd>{user.email}</dd></div>
+              <div><dt>数据空间</dt><dd>个人专属</dd></div>
+              <div><dt>身份验证</dt><dd>{user.provider === "local" ? "加密密码与安全会话" : "ChatGPT Sites"}</dd></div>
+            </dl>
+          </div>
+        ) : (
+          <div className="guide-content">
+            <p className="guide-intro">按照下面的顺序，就能完成从收集文献到沉淀阅读笔记的完整流程。</p>
+            <ol className="guide-steps">
+              <li><span>01</span><div><strong>录入文献</strong><p>点击页面右上角“录入文献”，填写标题、作者、年份、来源、摘要、阅读状态和评分。</p></div></li>
+              <li><span>02</span><div><strong>建立标签</strong><p>进入“标签管理”创建主题标签；录入或编辑文献时可同时关联多个标签。</p></div></li>
+              <li><span>03</span><div><strong>推进阅读</strong><p>把文献设为“待读”“阅读中”或“已读”，阅读概览会自动更新进度统计。</p></div></li>
+              <li><span>04</span><div><strong>记录笔记</strong><p>点击文献卡片打开详情，在笔记区域记录观点，并可补充页码或章节位置。</p></div></li>
+              <li><span>05</span><div><strong>检索整理</strong><p>在文献库按关键词、状态和标签组合筛选，也可以按更新时间、年份或标题排序。</p></div></li>
+              <li><span>06</span><div><strong>保护数据</strong><p>所有内容按账号隔离。使用完成后可在本窗口退出登录，公共设备上请务必退出。</p></div></li>
+            </ol>
+          </div>
+        )}
         <footer className="account-actions">
-          <button className="button secondary" onClick={onClose}>完成</button>
+          <button className="button secondary" onClick={onClose}>{tab === "guide" ? "知道了" : "关闭"}</button>
           <button className="button account-logout" onClick={logout} disabled={loggingOut}><LogOut size={16} />{loggingOut ? "正在退出…" : "退出登录"}</button>
         </footer>
       </section>
