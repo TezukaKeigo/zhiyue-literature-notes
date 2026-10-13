@@ -8,6 +8,13 @@
       "when": 1791615809680,
       "tag": "0000_acoustic_supernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791857756243,
+      "tag": "0001_worthless_doctor_strange",
+      "breakpoints": true
     }
   ]
 }

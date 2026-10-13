@@ -30,7 +30,7 @@ type Status = "TO_READ" | "READING" | "FINISHED";
 type AuthenticatedUser = {
   displayName: string;
   email: string;
-  provider: "chatgpt" | "cloudflare";
+  provider: "chatgpt" | "local";
   signOutPath: string;
 };
 
@@ -404,6 +404,21 @@ export function LiteratureApp({ user }: { user: AuthenticatedUser }) {
 }
 
 function AccountModal({ user, onClose }: { user: AuthenticatedUser; onClose: () => void }) {
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const logout = async () => {
+    if (user.provider === "chatgpt") {
+      window.location.assign(user.signOutPath);
+      return;
+    }
+    setLoggingOut(true);
+    try {
+      await fetch(user.signOutPath, { method: "POST" });
+    } finally {
+      window.location.replace("/");
+    }
+  };
+
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="modal account-modal" role="dialog" aria-modal="true" aria-labelledby="account-title">
@@ -414,7 +429,7 @@ function AccountModal({ user, onClose }: { user: AuthenticatedUser; onClose: () 
         <div className="account-content">
           <div className="account-identity">
             <span className="account-avatar" aria-hidden="true">{user.displayName.slice(0, 1).toLocaleUpperCase()}</span>
-            <div><strong>{user.displayName}</strong><span>{user.email}</span><small>{user.provider === "cloudflare" ? "Google / Cloudflare Access" : "ChatGPT 账户"}</small></div>
+            <div><strong>{user.displayName}</strong><span>{user.email}</span><small>{user.provider === "local" ? "知阅本地账号" : "ChatGPT 账户"}</small></div>
           </div>
           <div className="account-security">
             <ShieldCheck size={20} />
@@ -423,12 +438,12 @@ function AccountModal({ user, onClose }: { user: AuthenticatedUser; onClose: () 
           <dl className="account-details">
             <div><dt>登录邮箱</dt><dd>{user.email}</dd></div>
             <div><dt>数据空间</dt><dd>个人专属</dd></div>
-            <div><dt>身份验证</dt><dd>{user.provider === "cloudflare" ? "Cloudflare Access" : "ChatGPT Sites"}</dd></div>
+            <div><dt>身份验证</dt><dd>{user.provider === "local" ? "加密密码与安全会话" : "ChatGPT Sites"}</dd></div>
           </dl>
         </div>
         <footer className="account-actions">
           <button className="button secondary" onClick={onClose}>完成</button>
-          <a className="button account-logout" href={user.signOutPath} target="_top"><LogOut size={16} />退出登录</a>
+          <button className="button account-logout" onClick={logout} disabled={loggingOut}><LogOut size={16} />{loggingOut ? "正在退出…" : "退出登录"}</button>
         </footer>
       </section>
     </div>

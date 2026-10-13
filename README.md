@@ -100,20 +100,16 @@ npm run cloudflare:deploy
 
 Cloudflare 与 ChatGPT Sites 使用不同的 D1 数据库，数据不会自动同步。
 
-`workers.dev` 地址默认可以从公网访问。个人使用时，应在 Cloudflare 控制台进入
-Workers & Pages，选择 `zhiyue-literature-notes`，在 Access 页签中保护 All traffic，
-并将允许规则限制为自己的邮箱。部署配置已关闭公开的版本预览 URL。
+`workers.dev` 地址默认可以从公网访问，但应用内置独立的账号密码认证，不依赖
+Cloudflare Access。密码经过 PBKDF2-SHA256 加盐哈希后保存，登录会话使用带有
+`HttpOnly`、`Secure` 和 `SameSite=Lax` 属性的 Cookie。首次打开网站时只能创建一个
+初始管理员账号；创建成功后公开注册自动关闭。未登录访问数据接口会返回 `401`。
 
-应用不会在数据库中保存密码，而是使用 Cloudflare Access 完成 Google 登录。启用
-Access 后，还需要在 Worker 的 Settings > Variables and Secrets 中添加两个文本变量：
+已有远程数据库升级认证结构时执行：
 
-- `CF_ACCESS_TEAM_DOMAIN`：Zero Trust 团队域名，例如
-  `https://your-team.cloudflareaccess.com`
-- `CF_ACCESS_AUD`：Access 应用 Additional settings 中的 Application Audience (AUD) Tag
-
-部署配置启用了 `keep_vars`，重新发布代码时会保留控制台中设置的变量。应用会校验
-Access JWT 的签名、签发者、Audience 和有效期，并使用验证后的邮箱隔离每位用户的
-文献、标签和阅读笔记；缺少有效身份时，所有数据接口都会返回 `401`。
+```powershell
+npm run cloudflare:migrate:auth
+```
 
 ## 数据库设计
 
@@ -121,6 +117,8 @@ Access JWT 的签名、签发者、Audience 和有效期，并使用验证后的
 - `tags`：用户自定义标签
 - `literature_tags`：文献与标签的多对多关联
 - `reading_notes`：与具体文献关联的阅读笔记
+- `user_accounts`：本地登录账号与密码哈希
+- `auth_sessions`：有效登录会话的哈希令牌
 
 所有业务数据按访问用户隔离。外键启用级联删除，保证文献删除后不会残留孤立笔记或标签关联。
 

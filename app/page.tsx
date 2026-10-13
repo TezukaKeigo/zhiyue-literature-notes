@@ -1,12 +1,12 @@
 import { LiteratureApp } from "../components/literature-app";
 import { LoginGate } from "../components/login-gate";
-import { getAuthenticatedUser } from "./chatgpt-auth";
+import { getAuthenticatedUser, isInitialRegistrationOpen } from "./chatgpt-auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const user = await getAuthenticatedUser();
-  if (!user) return <LoginGate />;
+  if (!user) return <LoginGate registrationOpen={await isInitialRegistrationOpen()} />;
 
   return (
     <LiteratureApp
