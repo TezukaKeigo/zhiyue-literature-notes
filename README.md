@@ -102,8 +102,8 @@ Cloudflare 与 ChatGPT Sites 使用不同的 D1 数据库，数据不会自动�
 
 `workers.dev` 地址默认可以从公网访问，但应用内置独立的账号密码认证，不依赖
 Cloudflare Access。密码经过 PBKDF2-SHA256 加盐哈希后保存，登录会话使用带有
-`HttpOnly`、`Secure` 和 `SameSite=Lax` 属性的 Cookie。首次打开网站时只能创建一个
-初始管理员账号；创建成功后公开注册自动关闭。未登录访问数据接口会返回 `401`。
+`HttpOnly`、`Secure` 和 `SameSite=Lax` 属性的 Cookie。注册入口持续开放，每个邮箱只能
+注册一次；不同账号的文献、标签和笔记相互隔离。未登录访问数据接口会返回 `401`。
 
 已有远程数据库升级认证结构时执行：
 

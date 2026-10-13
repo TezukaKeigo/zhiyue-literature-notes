@@ -43,13 +43,12 @@ export async function POST(request: Request) {
           passwordHash: passwordRecord.hash,
           passwordSalt: passwordRecord.salt,
           passwordIterations: passwordRecord.iterations,
-          bootstrapSlot: 1,
         })
         .returning();
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
       if (message.includes("UNIQUE constraint failed")) {
-        return jsonError("初始账号已经创建，公开注册现已关闭", 409);
+        return jsonError("该邮箱已经注册，请直接登录", 409);
       }
       throw error;
     }

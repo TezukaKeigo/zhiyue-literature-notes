@@ -12,10 +12,8 @@ import {
 } from "lucide-react";
 import { FormEvent, useState } from "react";
 
-export function LoginGate({ registrationOpen }: { registrationOpen: boolean }) {
-  const [mode, setMode] = useState<"login" | "register">(
-    registrationOpen ? "register" : "login",
-  );
+export function LoginGate() {
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -63,7 +61,7 @@ export function LoginGate({ registrationOpen }: { registrationOpen: boolean }) {
         <h1 id="login-title">{isRegister ? "创建你的研究空间" : "登录你的文献库"}</h1>
         <p className="login-copy">
           {isRegister
-            ? "首次使用需要创建一个管理员账号。创建成功后，公开注册将自动关闭。"
+            ? "创建个人账号后，即可拥有独立的文献、标签和阅读笔记空间。"
             : "使用你的账号登录，继续管理个人文献、标签和阅读笔记。"}
         </p>
 
@@ -134,15 +132,13 @@ export function LoginGate({ registrationOpen }: { registrationOpen: boolean }) {
           </button>
         </form>
 
-        {registrationOpen && (
-          <button
-            className="auth-mode-button"
-            type="button"
-            onClick={() => { setMode(isRegister ? "login" : "register"); setError(""); }}
-          >
-            {isRegister ? "已有账号？返回登录" : "尚未创建账号？创建初始账号"}
-          </button>
-        )}
+        <button
+          className="auth-mode-button"
+          type="button"
+          onClick={() => { setMode(isRegister ? "login" : "register"); setError(""); }}
+        >
+          {isRegister ? "已有账号？返回登录" : "还没有账号？立即注册"}
+        </button>
         <p className="login-hint"><ShieldCheck size={15} />密码经过加盐哈希，登录状态使用安全 Cookie 保存</p>
       </section>
     </main>

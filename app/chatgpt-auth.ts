@@ -64,16 +64,6 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> 
   };
 }
 
-export async function isInitialRegistrationOpen(): Promise<boolean> {
-  const db = getDb();
-  const [account] = await db
-    .select({ id: userAccounts.id })
-    .from(userAccounts)
-    .where(eq(userAccounts.bootstrapSlot, 1))
-    .limit(1);
-  return !account;
-}
-
 export async function requireChatGPTUser(returnTo: string): Promise<AuthenticatedUser> {
   const user = await getChatGPTUser();
   if (user) return user;
