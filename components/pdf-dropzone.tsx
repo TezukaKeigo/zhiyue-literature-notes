@@ -6,8 +6,9 @@ import { ParsedPdfData, parsePdfLocally } from "../lib/pdf-import";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
-export function PdfDropzone({ onParsed }: { onParsed: (data: ParsedPdfData) => void }) {
+export function PdfDropzone({ onParsed }: { onParsed: (data: ParsedPdfData, previous: ParsedPdfData | null) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const previousResultRef = useRef<ParsedPdfData | null>(null);
   const [dragging, setDragging] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [fileName, setFileName] = useState("");
@@ -34,7 +35,8 @@ export function PdfDropzone({ onParsed }: { onParsed: (data: ParsedPdfData) => v
     try {
       const parsed = await parsePdfLocally(file);
       setResult(parsed);
-      onParsed(parsed);
+      onParsed(parsed, previousResultRef.current);
+      previousResultRef.current = parsed;
     } catch {
       setError("无法读取该 PDF。文件可能已加密或损坏，你仍可手动录入。");
     } finally {
@@ -51,7 +53,7 @@ export function PdfDropzone({ onParsed }: { onParsed: (data: ParsedPdfData) => v
   };
 
   const detectedFields = result
-    ? [result.title && "标题", result.authors && "作者", result.year && "年份", result.doi && "DOI", result.abstract && "摘要"].filter(Boolean)
+    ? [result.title && "标题", result.authors && "作者", result.year && "年份", result.journal && "来源", result.doi && "DOI", result.url && "链接", result.abstract && "摘要"].filter(Boolean)
     : [];
 
   return (
@@ -77,7 +79,7 @@ export function PdfDropzone({ onParsed }: { onParsed: (data: ParsedPdfData) => v
         {fileName && !parsing && <span className="pdf-reselect"><RotateCcw size={14} />重新选择</span>}
       </label>
       <p className="pdf-privacy">文件只在当前浏览器中解析，不会上传或保存 PDF 原文件。</p>
-      {result && <p className={result.hasExtractableText ? "pdf-result" : "pdf-warning"}>共 {result.pageCount} 页{detectedFields.length ? `，已识别并填入：${detectedFields.join("、")}` : "，未识别到可填入的信息，请手动完善"}。已有内容不会被覆盖。{!result.hasExtractableText && "未提取到正文文字，可能是扫描版 PDF，摘要需要手动填写。"}</p>}
+      {result && <p className={result.hasExtractableText ? "pdf-result" : "pdf-warning"}>共 {result.pageCount} 页{detectedFields.length ? `，已识别并填入：${detectedFields.join("、")}` : "，未识别到可填入的信息，请手动完善"}。重新选择 PDF 会更新自动识别结果，手工修改过的内容会保留。{!result.hasExtractableText && "未提取到正文文字，可能是扫描版 PDF，摘要需要手动填写。"}</p>}
       {error && <p className="pdf-error" role="alert">{error}</p>}
     </div>
   );

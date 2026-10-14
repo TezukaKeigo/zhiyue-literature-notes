@@ -2,10 +2,18 @@ export type ParsedPdfData = {
   title: string;
   authors: string;
   year: string;
+  journal: string;
   doi: string;
+  url: string;
   abstract: string;
   pageCount: number;
   hasExtractableText: boolean;
+};
+
+type PdfLine = {
+  text: string;
+  fontSize: number;
+  y: number;
 };
 
 const MAX_PAGES_TO_READ = 6;
@@ -28,26 +36,32 @@ export async function parsePdfLocally(file: File): Promise<ParsedPdfData> {
     const metadataAuthor = cleanMetadataAuthor(info.Author);
     const metadataYear = yearFromMetadata(info.CreationDate) || yearFromMetadata(info.ModDate);
 
-    const pages: string[] = [];
+    const pages: PdfLine[][] = [];
     const pageLimit = Math.min(document.numPages, MAX_PAGES_TO_READ);
     let characterCount = 0;
     for (let pageNumber = 1; pageNumber <= pageLimit && characterCount < MAX_EXTRACTED_CHARACTERS; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
       const textContent = await page.getTextContent();
-      const text = textItemsToLines(textContent.items).slice(0, MAX_EXTRACTED_CHARACTERS - characterCount);
-      pages.push(text);
-      characterCount += text.length;
+      const lines = textItemsToLines(textContent.items);
+      const textLength = lines.reduce((total, line) => total + line.text.length, 0);
+      pages.push(lines);
+      characterCount += textLength;
       page.cleanup();
     }
 
-    const firstPage = pages[0] ?? "";
-    const extractedText = pages.join("\n\n");
-    const title = metadataTitle || titleFromFirstPage(firstPage) || titleFromFilename(file.name);
+    const firstPageLines = pages[0] ?? [];
+    const firstPage = firstPageLines.map((line) => line.text).join("\n");
+    const extractedText = pages.map((page) => page.map((line) => line.text).join("\n")).join("\n\n");
+    const layoutTitle = titleFromFirstPage(firstPageLines);
+    const title = chooseTitle(metadataTitle, layoutTitle.title) || titleFromFilename(file.name);
+    const source = sourceFromText(extractedText);
     return {
       title,
-      authors: metadataAuthor || authorsFromFirstPage(firstPage, title),
+      authors: cleanAuthors(metadataAuthor || authorsFromFirstPage(firstPageLines, layoutTitle.endIndex)),
       year: metadataYear || yearFromText(firstPage),
+      journal: source.journal,
       doi: doiFromText(extractedText),
+      url: source.url,
       abstract: abstractFromText(extractedText),
       pageCount: document.numPages,
       hasExtractableText: extractedText.replace(/\s/g, "").length >= 40,
@@ -57,21 +71,38 @@ export async function parsePdfLocally(file: File): Promise<ParsedPdfData> {
   }
 }
 
-function textItemsToLines(items: Array<unknown>): string {
-  const lines: string[] = [];
-  let currentLine = "";
+function textItemsToLines(items: Array<unknown>): PdfLine[] {
+  const lines: PdfLine[] = [];
+  let parts: string[] = [];
+  let currentY: number | null = null;
+  let fontSize = 0;
+
+  const flush = () => {
+    const text = normalizeWhitespace(parts.join(" "));
+    if (text) lines.push({ text, fontSize, y: currentY ?? 0 });
+    parts = [];
+    currentY = null;
+    fontSize = 0;
+  };
 
   for (const item of items) {
     if (!item || typeof item !== "object" || !("str" in item)) continue;
-    const value = typeof item.str === "string" ? item.str.trim() : "";
-    if (value) currentLine = currentLine ? `${currentLine} ${value}` : value;
-    if ("hasEOL" in item && item.hasEOL) {
-      if (currentLine) lines.push(normalizeWhitespace(currentLine));
-      currentLine = "";
-    }
+    const value = typeof item.str === "string" ? sanitizeExtractedText(item.str) : "";
+    if (!value) continue;
+    const transform = "transform" in item && Array.isArray(item.transform) ? item.transform : [];
+    const itemY = typeof transform[5] === "number" ? transform[5] : currentY ?? 0;
+    const itemHeight = "height" in item && typeof item.height === "number"
+      ? item.height
+      : typeof transform[3] === "number" ? Math.abs(transform[3]) : 0;
+
+    if (parts.length && currentY !== null && Math.abs(itemY - currentY) > 3) flush();
+    if (currentY === null) currentY = itemY;
+    parts.push(value);
+    fontSize = Math.max(fontSize, itemHeight);
+    if ("hasEOL" in item && item.hasEOL) flush();
   }
-  if (currentLine) lines.push(normalizeWhitespace(currentLine));
-  return lines.filter(Boolean).join("\n");
+  flush();
+  return lines;
 }
 
 function cleanMetadataText(value: unknown): string {
@@ -91,34 +122,81 @@ function titleFromFilename(filename: string): string {
   return normalizeWhitespace(filename.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ")).slice(0, 300);
 }
 
-function titleFromFirstPage(text: string): string {
-  const candidates = text
-    .split("\n")
-    .slice(0, 18)
-    .map(normalizeWhitespace)
-    .filter((line) => line.length >= 8 && line.length <= 240)
-    .filter((line) => !/^(abstract|摘要|keywords?|关键词|doi\b|https?:|www\.)/i.test(line))
-    .filter((line) => !/^\d+$/.test(line));
-  return candidates.sort((left, right) => right.length - left.length)[0]?.slice(0, 300) ?? "";
+function titleFromFirstPage(lines: PdfLine[]): { title: string; endIndex: number } {
+  const candidates = lines
+    .slice(0, 24)
+    .map((line, index) => ({ ...line, index }))
+    .filter(({ text }) => isPossibleTitle(text));
+  if (!candidates.length) return { title: "", endIndex: -1 };
+
+  const largestFont = Math.max(...candidates.map((line) => line.fontSize));
+  const chosen = candidates
+    .filter((line) => line.fontSize >= largestFont * 0.96)
+    .sort((left, right) => left.index - right.index)[0];
+
+  const titleLines = [chosen.text];
+  let endIndex = chosen.index;
+  for (let index = chosen.index + 1; index < Math.min(lines.length, chosen.index + 3); index += 1) {
+    const line = lines[index];
+    if (line.fontSize < chosen.fontSize * 0.9 || !isPossibleTitle(line.text) || looksLikeAuthorLine(line.text)) break;
+    titleLines.push(line.text);
+    endIndex = index;
+  }
+  return { title: normalizeWhitespace(titleLines.join(" ")).slice(0, 300), endIndex };
 }
 
-function authorsFromFirstPage(text: string, title: string): string {
-  if (!title) return "";
-  const lines = text.split("\n").map(normalizeWhitespace).filter(Boolean);
-  const normalizedTitle = normalizeForMatch(title);
-  const titleIndex = lines.findIndex((line) => {
-    const normalizedLine = normalizeForMatch(line);
-    return normalizedLine === normalizedTitle || normalizedLine.includes(normalizedTitle.slice(0, 40));
-  });
-  if (titleIndex < 0) return "";
-
-  for (const line of lines.slice(titleIndex + 1, titleIndex + 4)) {
-    if (line.length < 2 || line.length > 220) continue;
-    if (/abstract|摘要|keywords?|关键词|doi\b|university|institute|学院|大学|研究所|@/i.test(line)) continue;
-    if (/^(19|20)\d{2}$/.test(line)) continue;
-    return line.slice(0, 300);
+function authorsFromFirstPage(lines: PdfLine[], titleEndIndex: number): string {
+  if (titleEndIndex < 0) return "";
+  const authorLines: string[] = [];
+  for (const line of lines.slice(titleEndIndex + 1, titleEndIndex + 6)) {
+    const text = cleanAuthors(line.text);
+    if (!text) continue;
+    if (isAffiliationOrSection(text)) break;
+    if (line.fontSize < 7 || text.length > 300) continue;
+    authorLines.push(text);
+    if (authorLines.length === 3) break;
   }
-  return "";
+  return cleanAuthors(authorLines.join(", ")).slice(0, 300);
+}
+
+function chooseTitle(metadataTitle: string, layoutTitle: string): string {
+  if (!metadataTitle) return layoutTitle;
+  if (!layoutTitle) return metadataTitle;
+  const metadataKey = normalizeForMatch(metadataTitle);
+  const layoutKey = normalizeForMatch(layoutTitle);
+  if (metadataKey.includes(layoutKey) || layoutKey.includes(metadataKey)) {
+    return layoutTitle.length >= metadataTitle.length ? layoutTitle : metadataTitle;
+  }
+  return metadataTitle;
+}
+
+function isPossibleTitle(text: string): boolean {
+  return text.length >= 6
+    && text.length <= 300
+    && !/^(abstract|摘要|keywords?|关键词|doi\b|https?:|www\.|arxiv\b)/i.test(text)
+    && !/^\d+$/.test(text)
+    && !isAffiliationOrSection(text);
+}
+
+function looksLikeAuthorLine(text: string): boolean {
+  const commas = (text.match(/[,，]/g) ?? []).length;
+  return commas >= 2 || /\b(?:and|与)\b/i.test(text) && text.split(/\s+/).length <= 18;
+}
+
+function isAffiliationOrSection(text: string): boolean {
+  return /abstract|摘要|keywords?|关键词|doi\b|university|institute|laborator(?:y|ies)|\blab\b|department|school of|college|学院|大学|研究所|实验室|@|^\d+\s+(?:introduction|引言)/i.test(text);
+}
+
+function cleanAuthors(value: string): string {
+  return normalizeWhitespace(value
+    .replace(/[♠♣♥♦◆◇■□●○★☆�\uE000-\uF8FF∗*†‡§¶¹²³⁴⁵⁶⁷⁸⁹⁰]/g, " ")
+    .replace(/\s*[,，]\s*/g, ", ")
+    .replace(/(?:,\s*){2,}/g, ", ")
+    .replace(/^,\s*|,\s*$/g, ""));
+}
+
+function sanitizeExtractedText(value: string): string {
+  return normalizeWhitespace(value.replace(/[♠♣♥♦◆◇■□●○★☆�\uE000-\uF8FF∗*†‡§¶¹²³⁴⁵⁶⁷⁸⁹⁰]/g, " "));
 }
 
 function yearFromMetadata(value: unknown): string {
@@ -138,10 +216,21 @@ function doiFromText(text: string): string {
   return match.replace(/[.,;:)\]}]+$/g, "").slice(0, 120);
 }
 
+function sourceFromText(text: string): { journal: string; url: string } {
+  const arxiv = text.match(/\barXiv\s*:\s*(\d{4}\.\d{4,5})(?:v\d+)?\b/i)?.[1];
+  const conference = text.match(/\b(ICLR|NeurIPS|ICML|ACL|EMNLP|NAACL|CVPR|ICCV|ECCV|AAAI|IJCAI|KDD|WWW)\s*(20\d{2})\b/i);
+  if (conference) {
+    const name = conference[1].toUpperCase() === "NEURIPS" ? "NeurIPS" : conference[1].toUpperCase();
+    return { journal: `${name} ${conference[2]}`, url: arxiv ? `https://arxiv.org/abs/${arxiv}` : "" };
+  }
+  if (arxiv) return { journal: `arXiv preprint arXiv:${arxiv}`, url: `https://arxiv.org/abs/${arxiv}` };
+  return { journal: "", url: "" };
+}
+
 function abstractFromText(text: string): string {
   const normalized = text.replace(/\r/g, "");
   const match = normalized.match(
-    /(?:^|\n)\s*(?:abstract|摘要)\s*[:：]?\s*([\s\S]{40,5000}?)(?=\n\s*(?:keywords?|关键词|index terms?|1\.?\s*(?:introduction|引言)|introduction|引言)\b|$)/i,
+    /(?:^|\n)\s*(?:abstract|摘要)\s*[:：]?\s*([\s\S]{40,5000}?)(?=\n\s*(?:(?:keywords?|index terms?|1\.?\s*introduction|introduction)\b|(?:关键词|引言)\s*[:：]?)|$)/i,
   );
   return match ? normalizeWhitespace(match[1]).slice(0, 5000) : "";
 }
