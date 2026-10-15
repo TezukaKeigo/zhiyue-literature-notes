@@ -73,7 +73,7 @@ npm run dev
 
 ## 独立部署到 Cloudflare
 
-项目可以脱离 ChatGPT Sites，直接部署到 Cloudflare Workers，并使用独立的 D1 数据库。
+项目部署到 Cloudflare Workers，并使用 Cloudflare D1 数据库持久化业务数据。
 
 首次部署前登录 Cloudflare：
 
@@ -100,7 +100,7 @@ npm run cloudflare:deploy
 - D1：`zhiyue-literature-notes-db`
 - D1 绑定名：`DB`
 
-Cloudflare 与 ChatGPT Sites 使用不同的 D1 数据库，数据不会自动同步。
+生产环境的 Cloudflare D1 与本地调试数据库相互独立，数据不会自动同步。
 
 `workers.dev` 地址默认可以从公网访问，但应用内置独立的账号密码认证，不依赖
 Cloudflare Access。密码经过 PBKDF2-SHA256 加盐哈希后保存，登录会话使用带有
