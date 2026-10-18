@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   index,
   integer,
   primaryKey,
@@ -112,5 +113,35 @@ export const notes = sqliteTable(
   (table) => [
     index("reading_notes_literature_idx").on(table.literatureId),
     index("reading_notes_user_idx").on(table.userId),
+  ],
+);
+
+export const literatureAiOutputs = sqliteTable(
+  "literature_ai_outputs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    literatureId: integer("literature_id")
+      .notNull()
+      .references(() => literatures.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    kind: text("kind").notNull(),
+    content: text("content").notNull(),
+    keywordsJson: text("keywords_json").notNull().default("[]"),
+    keyPointsJson: text("key_points_json").notNull().default("[]"),
+    inputHash: text("input_hash").notNull(),
+    model: text("model").notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    check(
+      "literature_ai_outputs_kind_check",
+      sql`${table.kind} in ('PAPER_ANALYSIS', 'READING_SUMMARY')`,
+    ),
+    uniqueIndex("literature_ai_outputs_literature_kind_unique").on(
+      table.literatureId,
+      table.kind,
+    ),
+    index("literature_ai_outputs_user_idx").on(table.userId),
   ],
 );

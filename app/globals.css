@@ -138,8 +138,8 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .completion-note > div { display: flex; flex-direction: column; }
 .completion-note strong { font-family: Georgia, serif; font-size: 20px; }
 .completion-note span { color: var(--muted); font-size: 10px; }
-.year-chart { display: flex; height: 180px; align-items: flex-end; justify-content: space-around; gap: 14px; padding: 6px 12px 0; }
-.year-column { display: flex; width: 56px; height: 100%; align-items: center; flex-direction: column; justify-content: flex-end; gap: 6px; }
+.year-chart { display: grid; height: 180px; grid-auto-columns: minmax(56px,1fr); grid-auto-flow: column; align-items: end; gap: 14px; overflow-x: auto; padding: 6px 12px 4px; }
+.year-column { display: flex; width: auto; min-width: 56px; height: 100%; align-items: center; flex-direction: column; justify-content: flex-end; gap: 6px; }
 .year-column > b { color: var(--muted); font-size: 10px; font-weight: 600; }
 .year-value { color: var(--teal); font-size: 10px; font-weight: 800; }
 .year-bar { display: flex; width: 27px; height: 120px; align-items: flex-end; border-radius: 6px 6px 3px 3px; background: #edf0ec; }
@@ -288,6 +288,30 @@ select, input, textarea { border: 1px solid var(--line); border-radius: 8px; bac
 .section-inline-title { display: flex; align-items: center; justify-content: space-between; }
 .section-inline-title h2 { margin-bottom: 3px; }
 .section-inline-title p { margin: 0; color: var(--muted); font-size: 10px; }
+.ai-section-heading { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 15px; }
+.ai-section-icon { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border-radius: 10px; background: #eee9f6; color: #66598c; }
+.ai-section-heading h2 { margin-bottom: 3px; }
+.ai-section-heading p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.ai-card-list { display: flex; flex-direction: column; gap: 11px; }
+.ai-card { border: 1px solid #dfe2dc; border-radius: 12px; background: #fbfaf6; padding: 14px; }
+.ai-card-heading { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: start; gap: 14px; }
+.ai-card-heading h3 { margin: 1px 0 4px; font-size: 12px; }
+.ai-card-heading p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.ai-card-heading .button { min-width: 94px; }
+.ai-disabled-reason, .ai-local-error { margin: 11px 0 0; border-radius: 8px; padding: 8px 10px; font-size: 10px; line-height: 1.55; }
+.ai-disabled-reason { background: #f0f0eb; color: #747d7c; }
+.ai-local-error { border: 1px solid #ebc7c3; background: #fff4f2; color: var(--red); }
+.ai-result { margin-top: 13px; border-top: 1px solid #e4e5df; padding-top: 13px; }
+.ai-stale { margin: 0 0 12px; border: 1px solid #dfc697; border-radius: 8px; background: #fff8e9; padding: 8px 10px; color: #805d25; font-size: 10px; font-weight: 700; }
+.ai-result-block + .ai-result-block { margin-top: 14px; }
+.ai-result-block h4 { margin: 0 0 7px; color: #344446; font-size: 10px; letter-spacing: .02em; }
+.ai-result-block h4 span { margin-left: 5px; color: var(--muted); font-size: 9px; font-weight: 500; letter-spacing: 0; }
+.ai-result-block > p { margin: 0; color: #4d5a5c; font-size: 11px; line-height: 1.8; white-space: pre-wrap; }
+.ai-result-block ul { display: flex; margin: 0; padding-left: 17px; flex-direction: column; gap: 5px; color: #4d5a5c; font-size: 11px; line-height: 1.65; }
+.ai-keywords { display: flex; flex-wrap: wrap; gap: 6px; }
+.ai-keywords span { border: 1px solid #cfc8df; border-radius: 99px; background: #f5f1fa; padding: 4px 8px; color: #66598c; font-size: 9px; font-weight: 700; }
+.ai-result-meta { margin: 14px 0 0; color: #939a99; font-size: 9px; }
+.ai-privacy-note { margin: 12px 2px 0; color: #7e8786; font-size: 9px; line-height: 1.65; }
 .note-form { margin-top: 17px; border: 1px solid var(--line); border-radius: 11px; background: #f9f8f3; padding: 12px; }
 .note-form textarea { width: 100%; resize: vertical; border: 0; background: transparent; padding: 2px; outline: 0; font-size: 12px; line-height: 1.7; }
 .note-form > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 9px; }
@@ -353,6 +377,8 @@ select, input, textarea { border: 1px solid var(--line); border-radius: 8px; bac
   .pdf-dropzone { grid-template-columns: 42px minmax(0,1fr); padding: 13px; }
   .pdf-reselect { display: none; }
   .drawer-scroll { padding: 24px 20px 40px; }
+  .ai-card-heading { grid-template-columns: 1fr; }
+  .ai-card-heading .button { width: 100%; }
   .note-form > div { align-items: stretch; flex-direction: column; }
   .note-form input { width: 100%; }
 }

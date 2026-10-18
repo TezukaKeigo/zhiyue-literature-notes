@@ -18,6 +18,8 @@ config.topLevelName = "zhiyue-literature-notes";
 config.workers_dev = true;
 config.preview_urls = false;
 config.keep_vars = true;
+config.vars = { ...(config.vars ?? {}), AUTH_MODE: "local" };
+config.ai = { binding: "AI", remote: true };
 config.d1_databases = [
   {
     binding: "DB",

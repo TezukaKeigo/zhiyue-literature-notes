@@ -1,6 +1,19 @@
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { getDb } from "../../../../db";
-import { literatureTags, literatures, notes, tags } from "../../../../db/schema";
+import {
+  literatureAiOutputs,
+  literatureTags,
+  literatures,
+  notes,
+  tags,
+} from "../../../../db/schema";
+import {
+  type AiOutputKind,
+  buildPaperAnalysisSource,
+  buildReadingSummarySource,
+  createAiInputHash,
+  parseStoredStringArray,
+} from "../../../../lib/ai";
 import { apiErrorResponse, getUserId, jsonError, parsePositiveId } from "../../../../lib/api";
 import { parseLiteraturePayload } from "../../../../lib/literature-validation";
 
@@ -19,7 +32,7 @@ export async function GET(_request: Request, context: Context) {
       .limit(1);
     if (!literature) return jsonError("文献不存在或已被删除", 404);
 
-    const [tagRows, noteRows] = await Promise.all([
+    const [tagRows, noteRows, aiRows] = await Promise.all([
       db
         .select({ id: tags.id, name: tags.name, color: tags.color })
         .from(literatureTags)
@@ -30,8 +43,49 @@ export async function GET(_request: Request, context: Context) {
         .from(notes)
         .where(and(eq(notes.literatureId, id), eq(notes.userId, userId)))
         .orderBy(desc(notes.updatedAt), desc(notes.id)),
+      db
+        .select()
+        .from(literatureAiOutputs)
+        .where(
+          and(
+            eq(literatureAiOutputs.literatureId, id),
+            eq(literatureAiOutputs.userId, userId),
+          ),
+        ),
     ]);
-    return Response.json({ literature: { ...literature, tags: tagRows, notes: noteRows } });
+
+    const [paperHash, readingHash] = await Promise.all([
+      literature.abstract.trim()
+        ? createAiInputHash("PAPER_ANALYSIS", buildPaperAnalysisSource(literature))
+        : Promise.resolve(null),
+      noteRows.length
+        ? createAiInputHash("READING_SUMMARY", buildReadingSummarySource(noteRows))
+        : Promise.resolve(null),
+    ]);
+    const findAiOutput = (kind: AiOutputKind, currentHash: string | null) => {
+      const row = aiRows.find((item) => item.kind === kind);
+      if (!row) return null;
+      return {
+        content: row.content,
+        keywords: parseStoredStringArray(row.keywordsJson),
+        keyPoints: parseStoredStringArray(row.keyPointsJson),
+        model: row.model,
+        updatedAt: row.updatedAt,
+        stale: currentHash === null || row.inputHash !== currentHash,
+      };
+    };
+
+    return Response.json({
+      literature: {
+        ...literature,
+        tags: tagRows,
+        notes: noteRows,
+        aiOutputs: {
+          paperAnalysis: findAiOutput("PAPER_ANALYSIS", paperHash),
+          readingSummary: findAiOutput("READING_SUMMARY", readingHash),
+        },
+      },
+    });
   } catch (error) {
     return apiErrorResponse(error);
   }

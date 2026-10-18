@@ -1,4 +1,5 @@
 import { and, eq, gt } from "drizzle-orm";
+import { env } from "cloudflare:workers";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getDb } from "../db";
@@ -26,14 +27,17 @@ const SIGN_OUT_PATH = "/signout-with-chatgpt";
 const CALLBACK_PATH = "/callback";
 
 export async function getChatGPTUser(): Promise<AuthenticatedUser | null> {
+  if (env.AUTH_MODE !== "sites") return null;
   const requestHeaders = await headers();
   return readChatGPTUser(requestHeaders);
 }
 
 export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> {
-  const requestHeaders = await headers();
-  const chatGPTUser = readChatGPTUser(requestHeaders);
-  if (chatGPTUser) return chatGPTUser;
+  if (env.AUTH_MODE === "sites") {
+    const requestHeaders = await headers();
+    const chatGPTUser = readChatGPTUser(requestHeaders);
+    if (chatGPTUser) return chatGPTUser;
+  }
 
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;

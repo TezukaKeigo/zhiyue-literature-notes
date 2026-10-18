@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { literatureTags, literatures, notes, tags } from "../../../db/schema";
 import {
@@ -53,7 +53,13 @@ export async function GET(request: Request) {
 
     if (query) {
       result = result.filter((item) =>
-        [item.title, item.authors, item.journal, item.doi]
+        [
+          item.title,
+          item.authors,
+          item.journal,
+          item.doi,
+          ...item.tags.map((tag) => tag.name),
+        ]
           .join(" ")
           .toLocaleLowerCase()
           .includes(query),

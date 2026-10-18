@@ -90,8 +90,8 @@ function textItemsToLines(items: Array<unknown>): PdfLine[] {
     const value = typeof item.str === "string" ? sanitizeExtractedText(item.str) : "";
     if (!value) continue;
     const transform = "transform" in item && Array.isArray(item.transform) ? item.transform : [];
-    const itemY = typeof transform[5] === "number" ? transform[5] : currentY ?? 0;
-    const itemHeight = "height" in item && typeof item.height === "number"
+    const itemY: number = typeof transform[5] === "number" ? transform[5] : currentY ?? 0;
+    const itemHeight: number = "height" in item && typeof item.height === "number"
       ? item.height
       : typeof transform[3] === "number" ? Math.abs(transform[3]) : 0;
 
