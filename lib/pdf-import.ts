@@ -228,11 +228,38 @@ function sourceFromText(text: string): { journal: string; url: string } {
 }
 
 function abstractFromText(text: string): string {
-  const normalized = text.replace(/\r/g, "");
-  const match = normalized.match(
-    /(?:^|\n)\s*(?:abstract|摘要)\s*[:：]?\s*([\s\S]{40,5000}?)(?=\n\s*(?:(?:keywords?|index terms?|1\.?\s*introduction|introduction)\b|(?:关键词|引言)\s*[:：]?)|$)/i,
+  // Small-cap headings are often separate PDF text items: "A" + "BSTRACT".
+  // Allow spacing inside headings, but never match the prefix of "Abstracting".
+  const spaced = (word: string) => word.split("").join("[ \\t]*");
+  const heading = new RegExp(
+    `^[ \\t]*(?:${spaced("abstract")}(?=$|[ \\t:：.．—–-])|摘[ \\t]*要)[ \\t]*(?:[:：.．]|[—–-]+)?[ \\t]*(.*)$`, "i",
   );
-  return match ? normalizeWhitespace(match[1]).slice(0, 5000) : "";
+  const ending = new RegExp(
+    `^(?:(?:(?:\\d+(?:\\.\\d+)*\\.?|[IVX]+)[ \\t]+)?${spaced("introduction")}(?=$|[ \\t:：.．])`
+    + `|(?:${spaced("keyword")}[ \\t]*s?|${spaced("indexterm")}[ \\t]*s?)`
+    + `(?=$|[ \\t:：.．])|(?:additional key words and phrases|ccs concepts?|acm reference format)(?=$|[ \\t:：.．])`
+    + `|(?:\\d+[.、]?\\s*)?(?:关键词|关键字|引言|绪论)|authors[’']? contact information\\b`
+    + `|permission to (?:make|copy)\\b|abstracting with credit\\b|(?:©|copyright\\b)|equal contribution\\b)`, "i",
+  );
+  const lines = text.replace(/\r/g, "").split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = lines[index].match(heading);
+    if (!match) continue;
+    const content = match[1] ? [match[1]] : [];
+    let length = match[1].length;
+    for (const rawLine of lines.slice(index + 1)) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      if (ending.test(line)) break;
+      if (/^(?:\d+|preprint|arxiv\s*:.*|.*\bpublication date\s*:.*)$/i.test(line)) continue;
+      content.push(line);
+      length += line.length + 1;
+      if (length >= 5000) break;
+    }
+    const abstract = normalizeWhitespace(content.join(" "));
+    if (abstract.length >= 40) return abstract.slice(0, 5000);
+  }
+  return "";
 }
 
 function normalizeWhitespace(value: string): string {
