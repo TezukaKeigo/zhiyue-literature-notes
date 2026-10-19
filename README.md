@@ -40,51 +40,84 @@ lib/
   ai.ts                        AI 输入构造、调用、校验与缓存哈希
   local-auth.ts                本地账号、密码和会话工具
   pdf-import.ts                浏览器端 PDF 题录解析
+  pdf-form.ts                  PDF 重选与手工修改保护
 drizzle/                       数据库迁移及快照
 docs/                          开发设计与验收资料
+tests/                         账号、业务接口、AI、PDF 与配置回归测试
+scripts/local.mjs              本地构建、初始化和启动
+.github/workflows/checks.yml   持续集成检查
 ```
 
 ## 本地运行
 
-环境要求为 Node.js 22.13 或更高版本。AI 使用远程 Cloudflare Workers AI 绑定，因此首次运行前需要登录 Cloudflare；本地 D1 数据仍保存在项目目录，不会与生产数据库混用。
+环境要求为 Node.js 22.13 或更高版本，建议使用 Node.js 22 LTS。Windows、macOS 和 Linux 均可运行；Windows 如遇到 workerd 启动缺少运行库的提示，需要安装 Microsoft Visual C++ Redistributable。
+
+当前测试已在 Node.js 22.15.0 和 24.19.0 验证通过。本机 Windows 的 Node.js 24.15.0 曾出现测试进程原生崩溃；遇到 `Worker exited unexpectedly` 时请切换 Node.js 22 LTS 或更新的 24.x 版本。仓库提供 `.nvmrc`，供支持该文件的 Node 版本管理工具读取。
+
+首次克隆后，在项目目录执行：
 
 ```powershell
 npm run install:ci
-npx wrangler login
-npm run build
-npm run cloudflare:prepare
-```
-
-首次初始化本地数据库时，按照迁移顺序执行：
-
-```powershell
-npx wrangler d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_acoustic_supernaut.sql --yes
-npx wrangler d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_worthless_doctor_strange.sql --yes
-npx wrangler d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0002_worthless_justin_hammer.sql --yes
-```
-
-随后启动构建后的 Worker：
-
-```powershell
+npm run setup
 npm start
 ```
 
-终端会显示实际访问地址，通常为 `http://127.0.0.1:8787`。修改代码后重新执行 `npm run build` 和 `npm run cloudflare:prepare`。
+`setup` 会构建项目，并按顺序应用全部本地迁移。重复运行只应用新增迁移，不会清空已有数据。终端会显示实际访问地址，通常为 `http://127.0.0.1:8787`；首次打开后自行注册账号。
 
-## 部署到 Cloudflare
+默认模式不需要 Cloudflare 账号、云数据库或 API 密钥。文献、标签、笔记、统计和 PDF 辅助录入都在本地工作，数据保存在 `.wrangler/local-state`。AI 按钮在有摘要或笔记时仍可点击，但未配置 AI 时会明确提示“AI 服务尚未配置”，不会返回伪造结果。
 
-项目使用一个 Worker、一个 D1 数据库和一个 Workers AI 绑定。首次部署前先完成 Cloudflare 登录，然后构建并依次初始化远程数据库：
+日常修改代码可使用支持热更新的开发服务器：
+
+```powershell
+npm run dev
+```
+
+开发地址通常为 `http://localhost:5173`，与 `npm start` 使用同一份本地数据库。新增迁移后执行 `npm run db:migrate:local`；若要查看生产构建效果，先运行 `npm run setup`，再运行 `npm start`。首次安装依赖需要联网，安装完成后的本地基础功能和自动化测试不依赖云服务。
+
+旧版本的 `.wrangler/state` 数据不会被删除，也不会自动复制到新目录。需要继续使用旧数据时，请先保留原目录并单独导出迁移，不要删除本地状态目录。
+
+### 本地启用真实 AI（可选）
+
+将 `.env.example` 复制为 `.env.local`，设置 `ZHIYUE_LOCAL_AI=1`，然后执行：
 
 ```powershell
 npx wrangler login
+npm run setup
+npm start
+```
+
+此时只有 AI 请求发送到 Cloudflare，D1 仍使用本地数据库。需要有效的 Workers AI 权限和可用配额，无需填写远程数据库 ID。不要给此启动命令增加 `--local`，否则远程 AI 绑定会被禁用。
+
+## 部署到 Cloudflare
+
+项目使用一个 Worker、一个 D1 数据库和一个 Workers AI 绑定。部署脚本从本机环境变量或未提交的 `.env.local` 读取资源信息，不绑定原作者的个人数据库。
+
+首次部署到自己的账号，先创建数据库：
+
+```powershell
+npx wrangler login
+npx wrangler d1 create zhiyue-literature-notes-db
+```
+
+将 `.env.example` 复制为 `.env.local`，填写上一步返回的 `database_id`。以下为配置格式，ID 必须替换为自己的值：
+
+```dotenv
+CLOUDFLARE_WORKER_NAME=zhiyue-literature-notes
+CLOUDFLARE_D1_DATABASE_NAME=zhiyue-literature-notes-db
+CLOUDFLARE_D1_DATABASE_ID=<创建数据库后返回的 UUID>
+```
+
+构建、初始化新建的远程数据库并发布：
+
+```powershell
 npm run build
-npm run cloudflare:migrate
-npm run cloudflare:migrate:auth
-npm run cloudflare:migrate:ai
+npm run cloudflare:migrate:all
 npm run cloudflare:deploy
 ```
 
-已有数据库只需要执行尚未应用的迁移。例如已经具备账号系统、但尚无 AI 结果表的环境，只需运行 `npm run cloudflare:migrate:ai` 后重新部署。
+`cloudflare:migrate:all` 使用迁移记录表跟踪已执行的 SQL，适用于新建数据库及之后的增量升级。远程操作会明确使用 `--remote`；本地初始化始终使用 `--local`。
+
+旧版线上数据库使用逐文件执行 SQL 的方式，没有这份迁移记录，不能直接再次运行 `cloudflare:migrate:all`。如果已执行全部三份迁移，只需部署；若只缺 AI 表，使用原有的 `npm run cloudflare:migrate:ai`。迁移文件保持不变，不要通过删表解决“表已存在”。
 
 当前部署资源如下：
 
@@ -122,13 +155,23 @@ AI 输出仅用于辅助阅读。候选关键词不会自动创建为系统标�
 
 ## 验证与验收
 
-提交前可执行以下检查：
+无需登录 Cloudflare，即可运行完整的自动化检查：
 
 ```powershell
-npm run lint
-npx tsc --noEmit
-npm run build
+npm run check
 ```
+
+也可以单独执行 `npm test`、`npm run test:watch`、`npm run typecheck` 或 `npm run lint`。`npm run build` 单独验证生产构建。
+
+| 测试文件 | 验证范围 |
+|---|---|
+| `tests/api.test.ts` | 注册登录与会话撤销、错误密码锁定、账号隔离、文献/标签/笔记闭环、筛选排序、重复和非法输入、级联删除、AI 缓存和过期提示、失败保留旧结果 |
+| `tests/pdf.test.ts` | 标题与作者区分、脚注符号清理、DOI 和 arXiv 提取、无文字或异常文档、PDF 重选及手工修改保护 |
+| `tests/runtime-config.test.mjs` | 本地配置不绑定个人资源、AI 显式启用、远程参数校验、自定义部署资源 |
+
+接口测试执行真实路由、密码哈希和 SQL 迁移，数据库使用 Miniflare 提供的独立临时 D1；不会读写日常本地数据库或线上数据。测试中的请求上下文使用适配器，AI 返回值和 PDF.js 提取数据使用明确的测试桩，因此测试不消耗 AI 配额，也不代表已经验证所有实际 PDF 或真实模型输出。界面交互和真实 AI 调用仍需按下述流程人工验收。
+
+运行结束会生成 `test-results/junit.xml`。GitHub Actions 在每次推送和 Pull Request 时运行检查及生产构建，并保存测试报告；执行结果以仓库 Actions 页中的实际记录为准。
 
 AI 功能可按以下方式快速验收：打开一篇包含摘要的文献，在详情页生成“文献分析”，确认概括、候选关键词和核心要点正常显示且刷新后仍存在；保存至少一条阅读笔记后生成“阅读总结”；随后修改摘要或笔记，确认旧结果出现过期提示并可重新生成。
 

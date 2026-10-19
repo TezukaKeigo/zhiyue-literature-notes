@@ -46,7 +46,9 @@ export async function POST(request: Request) {
         })
         .returning();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "";
+      // Drizzle wraps the D1 constraint error in Error.cause.
+      const cause = error instanceof Error ? error.cause : undefined;
+      const message = [error, cause].map((item) => item instanceof Error ? item.message : "").join("\n");
       if (message.includes("UNIQUE constraint failed")) {
         return jsonError("该邮箱已经注册，请直接登录", 409);
       }

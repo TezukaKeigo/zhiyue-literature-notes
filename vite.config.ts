@@ -4,6 +4,9 @@ import hostingConfig from "./.openai/hosting.json";
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
 import { sites } from "./build/sites-vite-plugin";
 import { connectorPreview } from "./build/connector-preview-plugin.mjs";
+import { loadLocalEnvironment } from "./scripts/runtime-config.mjs";
+
+loadLocalEnvironment();
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
@@ -17,13 +20,13 @@ const managedLinux = readExecutionProfile() === "managed-linux";
 const localBindingConfig = {
   main: "./build/sites-worker.ts",
   compatibility_flags: ["nodejs_compat"],
-  vars: { AUTH_MODE: "sites" },
-  ai: { binding: "AI", remote: true },
+  vars: { AUTH_MODE: managedLinux ? "sites" : "local" },
+  ...((managedLinux || process.env.ZHIYUE_LOCAL_AI === "1") ? { ai: { binding: "AI", remote: true } } : {}),
   d1_databases: d1
     ? [
         {
           binding: d1,
-          database_name: "site-creator-d1",
+          database_name: managedLinux ? "site-creator-d1" : "zhiyue-literature-notes-local",
           database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
         },
       ]
@@ -67,6 +70,7 @@ export default defineConfig(async ({ command }) => {
       sites({ mockAuth: !managedLinux }),
       connectorPreview(),
       cloudflare({
+        ...(!managedLinux ? { persistState: { path: ".wrangler/local-state" } } : {}),
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         inspectorPort: false,
         config: {

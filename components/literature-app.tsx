@@ -27,6 +27,7 @@ import {
 import { type Dispatch, FormEvent, type SetStateAction, useCallback, useEffect, useMemo, useState } from "react";
 import { PdfDropzone } from "./pdf-dropzone";
 import type { ParsedPdfData } from "../lib/pdf-import";
+import { mergePdfFields } from "../lib/pdf-form";
 
 type View = "dashboard" | "library" | "tags";
 type Status = "TO_READ" | "READING" | "FINISHED";
@@ -623,20 +624,7 @@ function LiteratureModal({ editing, form, tags, saving, onChange, onSubmit, onCl
   editing: boolean; form: LiteratureForm; tags: Tag[]; saving: boolean; onChange: Dispatch<SetStateAction<LiteratureForm>>; onSubmit: (event: FormEvent) => void; onClose: () => void;
 }) {
   const patch = <K extends keyof LiteratureForm>(key: K, value: LiteratureForm[K]) => onChange({ ...form, [key]: value });
-  const applyPdfData = (data: ParsedPdfData, previous: ParsedPdfData | null) => onChange((current) => {
-    const replacePdfValue = (currentValue: string, nextValue: string, previousValue?: string) =>
-      (!currentValue || (previousValue !== undefined && currentValue === previousValue)) ? nextValue : currentValue;
-    return {
-      ...current,
-      title: replacePdfValue(current.title, data.title, previous?.title),
-      authors: replacePdfValue(current.authors, data.authors, previous?.authors),
-      year: replacePdfValue(current.year, data.year, previous?.year),
-      journal: replacePdfValue(current.journal, data.journal, previous?.journal),
-      doi: replacePdfValue(current.doi, data.doi, previous?.doi),
-      url: replacePdfValue(current.url, data.url, previous?.url),
-      abstract: replacePdfValue(current.abstract, data.abstract, previous?.abstract),
-    };
-  });
+  const applyPdfData = (data: ParsedPdfData, previous: ParsedPdfData | null) => onChange((current) => mergePdfFields(current, data, previous));
   return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="modal literature-modal" role="dialog" aria-modal="true" aria-label={editing ? "编辑文献" : "录入文献"}><div className="modal-header"><div><p className="eyebrow">BIBLIOGRAPHIC RECORD</p><h2>{editing ? "编辑文献信息" : "录入新文献"}</h2><p>{editing ? "修改已有信息并保存。" : "可拖入 PDF 辅助填写，也可以直接手动录入。"}</p></div><button className="icon-button" onClick={onClose} aria-label="关闭"><X size={20} /></button></div><form onSubmit={onSubmit} className="modal-form">{!editing && <PdfDropzone onParsed={applyPdfData} />}<label className="full-field"><span>文献标题 <em>*</em></span><input value={form.title} onChange={(event) => patch("title", event.target.value)} maxLength={300} required autoFocus placeholder="输入论文、图书或报告标题" /></label><label className="full-field"><span>作者 <em>*</em></span><input value={form.authors} onChange={(event) => patch("authors", event.target.value)} maxLength={300} required placeholder="多位作者可用逗号分隔" /></label><label><span>发表年份</span><input type="number" min="1800" max={new Date().getFullYear() + 1} value={form.year} onChange={(event) => patch("year", event.target.value)} placeholder="2026" /></label><label><span>期刊或来源</span><input value={form.journal} onChange={(event) => patch("journal", event.target.value)} maxLength={200} placeholder="期刊、会议或出版社" /></label><label><span>DOI</span><input value={form.doi} onChange={(event) => patch("doi", event.target.value)} maxLength={120} placeholder="10.xxxx/xxxxx" /></label><label><span>原文链接</span><input type="url" value={form.url} onChange={(event) => patch("url", event.target.value)} maxLength={500} placeholder="https://..." /></label><label><span>阅读状态</span><select value={form.readingStatus} onChange={(event) => patch("readingStatus", event.target.value as Status)}><option value="TO_READ">待读</option><option value="READING">阅读中</option><option value="FINISHED">已读</option></select></label><label><span>个人评分</span><select value={form.rating} onChange={(event) => patch("rating", Number(event.target.value))}><option value={0}>暂不评分</option>{[1,2,3,4,5].map((value) => <option value={value} key={value}>{value} 星</option>)}</select></label><label className="full-field"><span>摘要或简介</span><textarea value={form.abstract} onChange={(event) => patch("abstract", event.target.value)} maxLength={5000} rows={4} placeholder="记录摘要，便于快速回顾文献内容" /></label><fieldset className="full-field tag-picker"><legend>主题标签</legend>{tags.length ? <div>{tags.map((tag) => { const checked = form.tagIds.includes(tag.id); return <button type="button" className={checked ? "checked" : ""} key={tag.id} onClick={() => patch("tagIds", checked ? form.tagIds.filter((id) => id !== tag.id) : [...form.tagIds, tag.id])}><i style={{ background: tag.color }} />{tag.name}{checked && <Check size={14} />}</button>; })}</div> : <p>还没有标签，可在“标签管理”中创建。</p>}</fieldset><div className="modal-actions full-field"><button type="button" className="button secondary" onClick={onClose}>取消</button><button type="submit" className="button primary" disabled={saving}>{saving && <LoaderCircle className="spin" size={16} />}{editing ? "保存修改" : "录入文献"}</button></div></form></section></div>;
 }
 
